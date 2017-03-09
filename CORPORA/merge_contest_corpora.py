@@ -19,6 +19,7 @@ result_test = 'united_corpora_test.dat'
 
 test_share = 0.1 # доля тестового набора при делении на train и test
 
+
 # --------------------------------------------------------------------------------
 
 word2lemmas = {u'ней': u'он', u'ним': u'он', u'ними': u'он', u'она': u'он', u'оно': u'он',
@@ -60,6 +61,20 @@ def correct_lemma( word, part_of_speech, lemma, tags_str ):
             return pos_word2lemmas[k]
 
         return lemma
+
+
+def remove_tag( tags, tag ):
+    if tag in tags:
+        return unicode.join( u'|', [ t for t in tags.split(u'|') if t!=tag ] )
+    else:
+        return tags
+
+
+def add_tag( tags, tag ):
+    if tag not in tags:
+        return tags + u'|' + tags
+    else:
+        return tags
 
 # --------------------------------------------------------------------------------
 
@@ -144,27 +159,32 @@ for corp_path in src:
                     new_tags_str = u''
                     if pos in pos2tags:
                         new_tags_str = unicode.join( u'|', [ tag for tag in tags_str.split(u'|') if tag in pos2tags[pos] ] )
-                    if len(new_tags_str)==0:
-                        new_tags_str=u'_'
 
                     if pos==u'VERB' and u'Aspect=' in new_tags_str:
-                        new_tags_str = new_tags_str.replace(u'Aspect=Imp|', u'')
-                        new_tags_str = new_tags_str.replace(u'Aspect=Perf|', u'')
+                        new_tags_str = remove_tag( new_tags_str, u'Aspect=Imp' )
+                        new_tags_str = remove_tag( new_tags_str, u'Aspect=Perf' )
 
                     if loword!=u'нет' and loword!=u'нету' and pos==u'VERB' and u'VerbForm=Fin' in new_tags_str and u'Voice=' not in new_tags_str:
-                        # в корпусе ГИКРИЯ глаголы в личной форме имеют тэг Voice=Act или Voice=Mid
+                        # в корпусе ГИКРИЯ глаголы в личной форме имеют тэг Voice=Act или Voice=Mid, добавим его
                         if loword.endswith(u'ся') or loword.endswith(u'сь'):
-                            new_tags_str = new_tags_str + u'|Voice=Mid'
+                            new_tags_str = add_tag( new_tags_str, u'Voice=Mid' )
                         else:
-                            new_tags_str = new_tags_str + u'|Voice=Act'
+                            new_tags_str = add_tag( new_tags_str, u'Voice=Act' )
 
                     # в корпусе unamb_sent_14_6.conllu краткие формы прилагательного имеют тег Case=Nom
                     # и не имеют тега Degree=Pos. Поправим это.
                     if pos==u'ADJ' and u'Variant=Short' in new_tags_str:
-                        if u'Case=Nom|' in new_tags_str:
-                            new_tags_str = new_tags_str.replace(u'Case=Nom|',u'')
+                        if u'Case=Nom' in new_tags_str:
+                            new_tags_str = remove_tag( new_tags_str, u'Case=Nom' )
                         if u'Degree=Pos' not in new_tags_str:
-                            new_tags_str = u'Degree=Pos|' + new_tags_str
+                            new_tags_str = add_tag( new_tags_str, u'Degree=Pos' )
+
+                    # одушевленность не оценивается, так что убираем ее из разметки
+                    new_tags_str = remove_tag( new_tags_str, u'Animacy=Inan' )
+                    new_tags_str = remove_tag( new_tags_str, u'Animacy=Anim' )
+
+                    if len(new_tags_str)==0:
+                        new_tags_str=u'_'
 
                     lemma = correct_lemma(word, pos, lemma0, new_tags_str)
                         
